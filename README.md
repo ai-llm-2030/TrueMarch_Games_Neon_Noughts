@@ -16,6 +16,13 @@
   <img src="assets/screenshot-play.png" alt="Neon Noughts — gameplay" width="820">
 </p>
 
+## More screenshots
+
+<table>
+<tr><td width="50%"><img src="assets/screenshot-map.png" alt="The Rival Ladder"><br><sub>The Rival Ladder</sub></td><td width="50%"><img src="assets/screenshot-brief.png" alt="Meeting a rival"><br><sub>Meeting a rival</sub></td></tr>
+<tr><td width="50%"><img src="assets/screenshot-play-ladder.png" alt="Victory"><br><sub>Victory</sub></td><td width="50%"><img src="assets/screenshot-shop.png" alt="The Spark Counter: marks and glows"><br><sub>The Spark Counter: marks and glows</sub></td></tr>
+</table>
+
 ## Controls
 
 | Keys | Action |
