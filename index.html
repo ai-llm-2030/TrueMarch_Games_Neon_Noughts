@@ -228,6 +228,21 @@
   .rface canvas { position: static; width: 4em; height: 4em; background: none; box-shadow: none; border-radius: .8em; }
   .rface p { margin: 0; font-style: italic; text-align: left; max-width: 18em; line-height: 1.35; }
 
+  /* Puzzle Forge */
+  .fgrow { display: flex; gap: 1.2em; align-items: flex-start; justify-content: center; margin-top: .4em; text-align: left; }
+  #fgCv { position: static; width: 16em; height: 16em; flex: none; background: none; box-shadow: none; border-radius: .9em; cursor: pointer; touch-action: none; }
+  .fgside { display: flex; flex-direction: column; gap: .35em; width: 17em; }
+  .fgside .sec { margin: .1em 0 0; }
+  .fgstat { margin: .2em 0; font-size: .86em; line-height: 1.4; min-height: 4.2em; color: var(--f-dim); }
+  .fgstat b { color: var(--f-ink); } .fgstat b.ok { color: var(--f-good); } .fgstat b.no { color: var(--f-bad); }
+  .fgcode { display: flex; gap: .35em; }
+  .fgcode input { flex: 1; min-width: 0; font: inherit; font-size: .9em; font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .04em; padding: .35em .55em;
+    border-radius: .5em; border: .08em solid var(--f-line); background: var(--f-card2); color: var(--f-ink); min-height: 40px; }
+  .fgcode .fb, .fgmine .fb { padding: .3em .7em; font-size: .85em; min-height: 40px; }
+  .fgmine { display: flex; flex-wrap: wrap; gap: .3em; }
+  .fgmine .fb { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .72em; font-weight: 700; }
+  @container (max-aspect-ratio: 1/1) { .fgrow { flex-direction: column; align-items: center; } #fgCv { width: 13em; height: 13em; } }
+
   /* How to play */
   .how { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7em; margin-top: .6em; width: min(48em, calc(96cqw - 3.4em)); }
   .hw { background: var(--f-card2); border-radius: .8em; padding: .6em; border: .06em solid var(--f-line); }
@@ -322,6 +337,7 @@
           <button class="fb" id="tShop">Spark Counter <small id="tShopInfo"></small></button>
           <button class="fb" id="tHow">How to play</button>
           <button class="fb" id="tSettings">Settings</button>
+          <button class="fb wide" id="tForge">Puzzle Forge <small id="tForgeInfo">build a puzzle · prove it · share the code</small></button>
         </div>
         <div class="tbar"><span class="sparks"><i></i><span id="tSparks">0</span></span><span id="tStars">★ 0 / 60</span><span id="tRec"></span></div>
         <div class="ctl" id="tCtl" aria-label="Controls">
@@ -370,6 +386,26 @@
           <canvas id="dPrev" width="300" height="300" style="position:static;width:11em;height:11em;margin:0 auto;display:block;background:none;box-shadow:none;border-radius:.8em"></canvas>
           <p class="lead" id="dInfo" style="margin-bottom:0"></p>
           <div class="btnrow"><button class="fb pri" id="dGo">Solve</button><button class="fb" data-back="title">Back</button></div>
+        </div>
+      </div>
+
+      <div class="ui dim" id="uiForge" hidden>
+        <div class="card res" style="max-width:min(42em,96cqw)">
+          <h2 class="h2"><small>Puzzle Forge · build, prove, share</small><span id="fgTitle">Compose a puzzle</span></h2>
+          <p class="lead" style="margin:.3em auto .2em;max-width:36em">Paint a 5×5 board — four in a row wins, ✕ moves first. The solver checks every reply ○ could make and proves the shortest forced win. A proven board becomes a share code anyone can paste and solve.</p>
+          <div class="fgrow">
+            <canvas id="fgCv" width="360" height="360" aria-label="Puzzle board editor"></canvas>
+            <div class="fgside">
+              <div class="sec">Brush</div><div class="seg" id="fgTool" style="display:inline-flex;align-self:flex-start"></div>
+              <p class="fgstat" id="fgStat" role="status"></p>
+              <div class="sec">Share code</div>
+              <div class="fgcode"><input id="fgCode" spellcheck="false" autocomplete="off" placeholder="Paste a code: NN3-…" aria-label="Puzzle code"><button class="fb" id="fgCopy">Copy</button><button class="fb" id="fgLoad">Load</button></div>
+              <div class="fgmine" id="fgMine"></div>
+            </div>
+          </div>
+          <p class="keysline keys-only" style="margin:.5em 0 0"><b>Click</b> or <b>←↑↓→</b> + <b>Space</b> paint · <b>X</b>/<b>O</b> place · <b>Del</b> erase · <b>B</b> brush · <b>C</b> copy · <b>L</b> paste code · <b>Enter</b> play · <b>Esc</b> back</p>
+          <p class="keysline touch-only" style="margin:.5em 0 0">Tap a square to paint it with the brush · tap again to clear</p>
+          <div class="btnrow"><button class="fb pri" id="fgPlay">Play it</button><button class="fb" id="fgRemix">Remix today's daily</button><button class="fb" id="fgClear">Clear</button></div>
         </div>
       </div>
 
@@ -801,6 +837,45 @@
     return (PZC[day] = p);
   }
 
+  /* ══ Puzzle Forge ════════════════════════════════════════════════════════
+   * The player composes a 5×5 four-in-a-row position; the same prover that
+   * certifies the Daily puzzle finds the shortest forced win for ✕ (1–3
+   * moves) against every defence. A proven board packs into a share code:
+   * 25 cells in base 3 (< 32^8) as eight Crockford base-32 letters, plus
+   * the depth and a check letter — NN3-XXXXXXXXC. Codes are re-proved on
+   * load, so a hand-edited code can never claim a win that is not there. */
+  var FG_ABC = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  function forgeState(cells) { var s = newGrid({ n: 5, k: 4 }); s.c.set(cells); s.free = 0; for (var i = 0; i < 25; i++) if (!s.c[i]) s.free++; s.turn = 1; return s; }
+  function forgeLine(s) { for (var a = 0; a < s.L.length; a++) { var l = s.L[a], v = s.c[l[0]]; if (!v) continue; for (var b = 1; b < l.length && s.c[l[b]] === v; b++); if (b === l.length) return v; } return 0; }
+  function forgeProve(cells) {
+    var s = forgeState(cells), x = 0, o = 0;
+    for (var i = 0; i < 25; i++) { if (cells[i] === 1) x++; else if (cells[i] === 2) o++; }
+    if (!x && !o) return { ok: false, msg: 'An empty board. Paint some ✕ and ○ marks: ✕ is the attacker, ○ defends.' };
+    if (forgeLine(s)) return { ok: false, msg: 'A line of four is already on the board. Break it up.' };
+    if (s.free < 3) return { ok: false, msg: 'Leave a few empty squares to play in.' };
+    var d = 0; for (var k = 1; k <= 3; k++) if (pzWins(s, 1, k)) { d = k; break; }
+    if (!d) return { ok: false, x: x, o: o, msg: 'No forced win within 3: ○ can hold every line. Add ✕ pressure or remove a ○.' };
+    var keys = pzKeys(s, d);
+    return { ok: true, d: d, keys: keys, x: x, o: o };
+  }
+  function forgeCheck(body, d) { return FG_ABC[hashStr('nn' + d + body) % 32]; }
+  function forgeEncode(cells, d) {
+    var v = 0; for (var i = 24; i >= 0; i--) v = v * 3 + (cells[i] | 0);
+    var body = ''; for (var k = 0; k < 8; k++) { body = FG_ABC[v % 32] + body; v = Math.floor(v / 32); }
+    return 'NN' + d + '-' + body + forgeCheck(body, d);
+  }
+  /** A code → { cells, d } or null. Forgiving: case, spaces, O/0 and I/L/1 mix-ups. */
+  function forgeDecode(code) {
+    var t = String(code || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+    var m = /^NN([1-3])([0-9A-Z]{9})$/.exec(t); if (!m) return null;
+    var raw = m[2].replace(/O/g, '0').replace(/[IL]/g, '1'), body = raw.slice(0, 8), d = +m[1];
+    if (forgeCheck(body, d) !== raw[8]) return null;
+    var v = 0; for (var k = 0; k < 8; k++) { var j = FG_ABC.indexOf(body[k]); if (j < 0) return null; v = v * 32 + j; }
+    var cells = []; for (var i = 0; i < 25; i++) { cells.push(v % 3); v = Math.floor(v / 3); }
+    if (v) return null;
+    return { cells: cells, d: d };
+  }
+
   /* ══ The ladder ═════════════════════════════════════════════════════════
    * Four leagues of five rivals; the fifth of each is the league champion.
    * v = the board (n, k in a row, misère, fading, gravity, dead squares,
@@ -900,6 +975,7 @@
     imp: { n: 'Omega', t: 'Impossible', f: { sh: 'hex', c: '#ff4d6d', c2: '#ffd23f', eye: 'mono', mo: 'flat', ex: 'crown' } },
     p2: { n: 'Player ○', t: 'Hot-seat', f: { sh: 'round', c: '#ff3fa4', eye: 'wide', mo: 'grin', ex: 'none' } },
     daily: { n: 'The Warden', t: 'Daily puzzle', f: { sh: 'square', c: '#7dffcf', eye: 'glasses', mo: 'flat', ex: 'hat' } },
+    forge: { n: 'Anvil', t: 'Puzzle Forge', f: { sh: 'hex', c: '#ffb03f', c2: '#ff3fa4', eye: 'visor', mo: 'grin', ex: 'antenna' } },
   };
   function parOf(v) { return v.ult ? 26 : v.fade ? 7 : v.gravity ? 9 : v.n === 3 ? 4 : v.n === 4 ? 7 : 9; }
 
@@ -1231,6 +1307,7 @@
   function sceneCols(id) {
     if (id === 'title') return { d: ['#0a0320', '#2c0b4d'], l: ['#f7e3ff', '#dff7ff'], a: '#ff3fa4', b: '#2de2e6' };
     if (id === 'daily') return { d: ['#03141a', '#0b3340'], l: ['#e0fbf6', '#eaf3ff'], a: '#7dffcf', b: '#4d9bff' };
+    if (id === 'forge') return { d: ['#1a0a06', '#3d1530'], l: ['#fff1e0', '#fbe6f4'], a: '#ffb03f', b: '#ff3fa4' };
     if (id === 'free') return { d: ['#0b0626', '#1f1450'], l: ['#ecebff', '#f9e6ff'], a: '#4d9bff', b: '#ff3fa4' };
     for (var i = 0; i < CH.length; i++) if (CH[i].id === id) return CH[i];
     return CH[0];
@@ -1396,6 +1473,7 @@
   /* ══ Starting things ════════════════════════════════════════════════════ */
   function oppFor(spec) {
     if (spec.mode === 'camp') return OPP[spec.si];
+    if (spec.mode === 'forge') return { n: FREE_FACE.forge.n, t: FREE_FACE.forge.t, f: FREE_FACE.forge.f, v: { n: 5, k: 4 }, tw: {}, sk: 1, R: 1, hi: 'Forged and proven. Find the hammer blow.', win: 'The board holds. Strike again.', lose: 'Clean strike. Well forged.', draw: '' };
     if (spec.mode === 'daily') return { n: FREE_FACE.daily.n, t: FREE_FACE.daily.t, f: FREE_FACE.daily.f, v: { n: 5, k: 4 }, tw: {}, sk: 1, R: 1, hi: 'Three moves. Not one more.', win: 'The puzzle holds. Try again.', lose: 'Solved. Clean work.', draw: '' };
     var fv = FREE_V.filter(function (x) { return x.id === spec.v; })[0] || FREE_V[0];
     if (spec.mode === 'duel') return { n: FREE_FACE.p2.n, t: FREE_FACE.p2.t, f: FREE_FACE.p2.f, v: fv.v, vName: fv.n, tw: {}, R: 1, hi: 'Pass the device. ✕ and ○ take turns.', win: '○ takes it!', lose: '✕ takes it!', draw: 'Even.' };
@@ -1412,9 +1490,9 @@
       mood: 'idle', moodT: 0, say: { txt: '', t0: 0 }, lineT: 0, after: null, first: spec.first || 'you', game: 0 };
     G.duel = sess; G.game = sess.game;
     if (spec.mode === 'camp') { var ch = CH[Math.floor(spec.si / 5)]; setScene(ch.id); }
-    else setScene(spec.mode === 'daily' ? 'daily' : 'free');
-    $('hTitle').textContent = spec.mode === 'camp' ? (o.boss ? '♛ ' : '') + o.n + ' · ' + o.t : spec.mode === 'daily' ? 'Daily puzzle · ' + spec.day : spec.mode === 'duel' ? 'Hot-seat · ' + o.vName : 'Free Play · ' + o.vName + ' · ' + o.t;
-    var chips = spec.mode === 'daily' ? [['Win in 3', ''], ['5×5 · 4 in a row', '']] : ruleChips(o);
+    else setScene(spec.mode === 'daily' ? 'daily' : spec.mode === 'forge' ? 'forge' : 'free');
+    $('hTitle').textContent = spec.mode === 'camp' ? (o.boss ? '♛ ' : '') + o.n + ' · ' + o.t : spec.mode === 'forge' ? 'Puzzle Forge · ' + spec.code : spec.mode === 'daily' ? 'Daily puzzle · ' + spec.day : spec.mode === 'duel' ? 'Hot-seat · ' + o.vName : 'Free Play · ' + o.vName + ' · ' + o.t;
+    var chips = spec.mode === 'daily' ? [['Win in 3', ''], ['5×5 · 4 in a row', '']] : spec.mode === 'forge' ? [['Win in ' + spec.n, 'a proven forced win'], ['5×5 · 4 in a row', '']] : ruleChips(o);
     G.chipsHtml = chips.map(function (c) { return '<span class="chip" title="' + esc(c[1]) + '">' + esc(c[0]) + '</span>'; }).join('');
     $('hChips').innerHTML = G.chipsHtml;
     $('foeName').innerHTML = esc(o.n) + ' <small>' + esc(o.t) + '</small>';
@@ -1444,11 +1522,14 @@
     G.m.slips++;
     void kind;
   }
+  /** Daily and Forge are both "force the win within N" puzzles. */
+  function pzMode() { return G && (G.mode === 'daily' || G.mode === 'forge'); }
   function startRound() {
     var o = G.o, s;
-    if (G.mode === 'daily') {
+    if (G.mode === 'forge') { s = forgeState(G.spec.cells); G.pzN = G.left = G.spec.n; }
+    else if (G.mode === 'daily') {
       var pz = puzzleFor(G.spec.day); s = newGrid({ n: 5, k: 4 }); s.c.set(pz.cells); s.free = 0; for (var i = 0; i < 25; i++) if (!s.c[i]) s.free++;
-      s.turn = 1; G.pz = pz; G.left = 3;
+      s.turn = 1; G.pz = pz; G.left = 3; G.pzN = 3;
     } else {
       var r = G.m.rounds;
       if (G.mode !== 'camp') r = G.first === 'them' ? 1 : G.first === 'alt' ? G.game : 0;
@@ -1457,12 +1538,12 @@
     G.s = s; G.hist = []; G.anim = {}; G.vanish = []; G.drops = {}; G.peek = {}; G.hint = -1; G.lineT = 0; G.after = null; G.roundMoves = 0; G.clocked = false;
     for (var j = 0; j < (s.c.length); j++) if (s.c[j] === 1 || s.c[j] === 2) G.anim[j] = now - 2;
     G.cur = s.kind === 'ult' ? 40 : ((s.n * s.n) >> 1);
-    if (G.mode === 'daily') G.cur = 12;
+    if (pzMode()) G.cur = 12;
     G.phase = 'play'; G.clock = o.tw && o.tw.blitz ? o.tw.blitz : 0;
     if (isAITurn()) { G.phase = 'ai'; G.aiWait = aiDelay() + .45; }
     updateHud();
   }
-  function isAITurn() { return G && !G.s.over && (G.mode === 'camp' || G.mode === 'free' || G.mode === 'daily') && G.s.turn === 2; }
+  function isAITurn() { return G && !G.s.over && (G.mode === 'camp' || G.mode === 'free' || pzMode()) && G.s.turn === 2; }
   function humanTurn() { return G && G.phase === 'play' && !G.s.over && (G.mode === 'duel' || G.s.turn === 1); }
 
   /* ══ Moves ══════════════════════════════════════════════════════════════ */
@@ -1497,20 +1578,20 @@
       if (preWins.indexOf(m) >= 0 && RND() < .6) say(pick(BLOCKS), 'angry', 1.4);
       else if (s.kind === 'grid' && gWinCells(s, 2).length && RND() < .5) say(pick(THREATS), 'happy', 1.4);
     }
-    if (G.mode === 'daily' && p === 1 && !s.over) G.left--;
+    if (pzMode() && p === 1 && !s.over) G.left--;
     afterMove();
     updateHud();
   }
   function afterMove() {
     var s = G.s;
     if (s.over) { roundOver(); return; }
-    if (G.mode === 'daily' && G.left <= 0 && s.turn === 2) { G.phase = 'end'; G.mood = 'happy'; say('Three moves — and no line.', 'happy'); G.after = { t: 1.2, fn: function () { results(); } }; return; }
+    if (pzMode() && G.left <= 0 && s.turn === 2) { G.phase = 'end'; G.mood = 'happy'; say((G.pzN === 3 ? 'Three moves' : G.pzN === 2 ? 'Two moves' : 'One move') + ' — and no line.', 'happy'); G.after = { t: 1.2, fn: function () { results(); } }; return; }
     if (isAITurn()) { G.phase = 'ai'; G.aiWait = aiDelay(); G.mood = 'think'; }
     else { G.phase = 'play'; if (G.mood === 'think') G.mood = 'idle'; if (s.kind === 'ult' && s.next >= 0 && !s.b[s.next]) { var v = idx2vis(G.cur); if (((G.cur / 9) | 0) !== s.next) G.cur = s.next * 9 + 4; void v; } }
   }
   function aiMove() {
     var s = G.s, m;
-    if (G.mode === 'daily') m = pzReply(s, G.left);
+    if (pzMode()) m = pzReply(s, G.left);
     else m = aiPick(s, { sk: G.o.sk, st: G.o.st, imp: G.o.imp, meek: G.o.meek });
     if (m == null || m < 0 || !legal(m)) { var ms = anyMoves(s); m = ms[0]; }
     commit(m, 'ai');
@@ -1582,7 +1663,7 @@
     SFX.back(); updateHud();
   }
   function bestFor(s) {
-    if (G.mode === 'daily') { var k = pzKeys(s, G.left); return k.length ? k[0] : anyMoves(s)[0]; }
+    if (pzMode()) { var k = pzKeys(s, G.left); return k.length ? k[0] : anyMoves(s)[0]; }
     var mine = s.turn;
     // the hint engine always plays for the side to move
     var t = cloneState(s), m = aiPick(t, { sk: 1, imp: true, ms: s.kind === 'ult' ? 260 : 220 });
@@ -1603,16 +1684,16 @@
     if (!G) return;
     var m = G.m, o = G.o;
     if (G.mode === 'camp') { $('hYou').textContent = m.you; $('hThem').textContent = m.them; $('hRound').textContent = m.rounds >= o.R ? 'Decider' : 'Round ' + Math.min(o.R, m.rounds + 1) + '/' + o.R; }
-    else if (G.mode === 'daily') { $('hYou').textContent = G.left; $('hThem').textContent = '3'; $('hRound').textContent = 'moves left'; }
+    else if (pzMode()) { $('hYou').textContent = G.left; $('hThem').textContent = G.pzN; $('hRound').textContent = 'moves left'; }
     else { var f = save.free; if (G.mode === 'free') { $('hYou').textContent = f.w; $('hThem').textContent = f.l; $('hRound').textContent = 'draws ' + f.d; } else { $('hYou').textContent = G.duel ? G.duel.x : 0; $('hThem').textContent = G.duel ? G.duel.o : 0; $('hRound').textContent = 'game ' + (G.game + 1); } }
-    $('hScore').querySelector('i').textContent = G.mode === 'daily' ? '/' : ':';
+    $('hScore').querySelector('i').textContent = pzMode() ? '/' : ':';
     $('nHint').textContent = hintsLeft();
     $('bHint').disabled = !humanTurn() || hintsLeft() <= 0;
     $('bUndo').disabled = !G.hist.length || G.phase === 'end' || G.phase === 'ai';
     var s = G.s, tt = $('turnTxt'), sub = $('turnSub');
     if (G.phase === 'end') { tt.textContent = s.over === 3 ? 'Draw' : G.mode === 'duel' ? (s.over === 1 ? '✕ wins' : '○ wins') : s.over === 1 ? 'You win the round' : s.over === 2 ? o.n + ' wins' : 'Out of moves'; sub.textContent = ''; }
     else if (G.mode === 'duel') { tt.textContent = (s.turn === 1 ? 'Player ✕' : 'Player ○') + ' to move'; sub.textContent = s.kind === 'ult' ? boardHint(s) : ''; }
-    else if (s.turn === 1) { tt.textContent = 'Your move'; sub.textContent = G.mode === 'daily' ? 'win within ' + G.left : s.kind === 'ult' ? boardHint(s) : s.misere ? 'avoid making a line' : ''; }
+    else if (s.turn === 1) { tt.textContent = 'Your move'; sub.textContent = pzMode() ? 'win within ' + G.left : s.kind === 'ult' ? boardHint(s) : s.misere ? 'avoid making a line' : ''; }
     else { tt.textContent = o.n + ' is thinking'; sub.textContent = ''; }
   }
   function boardHint(s) { return s.next >= 0 && !s.b[s.next] ? 'board ' + ['top-left', 'top', 'top-right', 'left', 'centre', 'right', 'bottom-left', 'bottom', 'bottom-right'][s.next] : 'any open board'; }
@@ -1756,6 +1837,17 @@
       if (!won && g.lastLoss) causeLine(g.lastLoss);
       addBtn(rb, 'Map', '', function () { var c = Math.floor(si / 5); G = null; openMap(c); });
       if (won && si === OPP.length - 1) best = 'You hold the Spire. Every rival beaten.';
+    } else if (g.mode === 'forge') {
+      var okF = s.over === 1, fc = g.spec.code, FS = forgeStore(), shown = botOn;
+      if (!shown) { FS.tries[fc] = (FS.tries[fc] | 0) + 1; if (okF) FS.solved[fc] = 1; forgeSave(); }
+      sub = 'Puzzle Forge · ' + fc; title = shown ? 'The forced win' : okF ? 'Solved!' : 'Not this time';
+      quote = okF ? o.lose : o.win; mood = okF ? 'sad' : 'happy';
+      stats = [['Win in', g.pzN], [shown ? '✕ moves' : 'Your moves', g.hist.filter(function (r) { return r.p === 1; }).length], ['Tries', FS.tries[fc] | 0]];
+      best = okF && !shown && FS.tries[fc] === 1 ? 'First try' : '';
+      var fspec = g.spec;
+      addBtn(rb, okF ? 'Play again' : 'Retry', 'pri', function () { begin(fspec); });
+      if (!okF) addBtn(rb, 'Show solution', '', function () { begin(fspec); botOn = true; botWait = .8; toast('Watch the forced win'); });
+      addBtn(rb, 'Back to the Forge', '', function () { G = null; show('forge'); });
     } else if (g.mode === 'daily') {
       var ok = s.over === 1, dk = g.spec.day, rec = save.daily.days[dk];
       sub = 'Daily puzzle · ' + dk; title = ok ? 'Solved!' : 'Not this time';
@@ -1813,7 +1905,7 @@
   }
 
   /* ══ Views ══════════════════════════════════════════════════════════════ */
-  var UIS = { title: 'uiTitle', map: 'uiMap', brief: 'uiBrief', setup: 'uiSetup', daily: 'uiDaily', shop: 'uiShop', how: 'uiHow', settings: 'uiSettings', pause: 'uiPause', results: 'uiResults' };
+  var UIS = { title: 'uiTitle', map: 'uiMap', brief: 'uiBrief', setup: 'uiSetup', daily: 'uiDaily', forge: 'uiForge', shop: 'uiShop', how: 'uiHow', settings: 'uiSettings', pause: 'uiPause', results: 'uiResults' };
   var settingsReturn = 'title', shopReturn = 'title', curCh = 0, briefStage = 0, setupMode = 'free';
   function show(v) {
     var prev = view; view = v;
@@ -1822,7 +1914,7 @@
     $('backBtn').hidden = v === 'title' || v === 'play';   // BACK on every screen that is not the title or live play
     var inGame = G && (v === 'play' || v === 'pause' || v === 'results' || (v === 'settings' && settingsReturn === 'pause'));
     playEl.hidden = !inGame;
-    if (!inGame) { if (v === 'map') setScene(CH[curCh].id); else if (v === 'daily') setScene('daily'); else if (v === 'setup') setScene('free'); else if (v === 'title') setScene('title'); }
+    if (!inGame) { if (v === 'map') setScene(CH[curCh].id); else if (v === 'daily') setScene('daily'); else if (v === 'forge') setScene('forge'); else if (v === 'setup') setScene('free'); else if (v === 'title') setScene('title'); }
     if (v === 'title') renderTitle();
     if (v === 'map') renderMap();
     if (v === 'shop') renderShop();
@@ -1830,7 +1922,8 @@
     if (v === 'settings') renderSettings();
     if (v === 'setup') renderSetup();
     if (v === 'daily') renderDaily();
-    if (v === 'pause') { $('pTitle').textContent = G.mode === 'camp' ? G.o.n : G.mode === 'daily' ? 'Daily puzzle' : G.mode === 'duel' ? 'Hot-seat' : 'Free Play'; $('pInfo').textContent = pauseInfo(); $('pQuit').textContent = G.mode === 'camp' ? 'Quit to map' : 'Quit to menu'; }
+    if (v === 'forge') renderForge();
+    if (v === 'pause') { $('pTitle').textContent = G.mode === 'camp' ? G.o.n : G.mode === 'forge' ? 'Puzzle Forge' : G.mode === 'daily' ? 'Daily puzzle' : G.mode === 'duel' ? 'Hot-seat' : 'Free Play'; $('pInfo').textContent = pauseInfo(); $('pQuit').textContent = G.mode === 'camp' ? 'Quit to map' : 'Quit to menu'; }
     if (v !== 'play' && prev !== v) $('toast').classList.remove('show');
     layout();
     focusFirst();
@@ -1842,14 +1935,14 @@
   }
   function pauseInfo() {
     if (G.mode === 'camp') return 'Rounds ' + G.m.you + '–' + G.m.them + ' · best of ' + G.o.R + ' · ' + ruleChips(G.o).map(function (c) { return c[0]; }).join(' · ');
-    if (G.mode === 'daily') return G.left + ' of 3 moves left';
+    if (pzMode()) return G.left + ' of ' + G.pzN + ' moves left';
     return G.o.vName + (G.mode === 'free' ? ' vs ' + G.o.n + ' (' + G.o.t + ')' : '');
   }
   function pause() { if (!G || view !== 'play' || G.phase === 'end') return; SFX.ui(); show('pause'); }
   function resume() { if (!G) return; SFX.ui(); show('play'); }
   /** Walking out of a ladder match that is still being played is a slip. */
   function walkOut() { if (G && G.mode === 'camp' && G.phase !== 'end') slip('walkout'); }
-  function quitGame() { walkOut(); var g = G; G = null; botOn = false; if (g && g.mode === 'camp') openMap(Math.floor(g.si / 5)); else show('title'); }
+  function quitGame() { walkOut(); var g = G; G = null; botOn = false; if (g && g.mode === 'camp') openMap(Math.floor(g.si / 5)); else show(g && g.mode === 'forge' ? 'forge' : 'title'); }
 
   function renderTitle() {
     var tot = totalStars(), beaten = 0; for (var k in save.beat) beaten++;
@@ -1857,6 +1950,8 @@
     var dd = save.daily.days[dayKey()];
     $('tDailyInfo').textContent = dd && dd.ok ? 'solved ✓' : 'win in 3';
     $('tShopInfo').textContent = save.sparks + ' ✦';
+    var fsN = 0; for (var fk in forgeStore().solved) fsN++;
+    $('tForgeInfo').textContent = (fsN ? fsN + ' solved · ' : '') + 'build a puzzle · prove it · share the code';
     $('tWelcome').textContent = welcomeLine();
     $('tSparks').textContent = save.sparks; $('tStars').textContent = '★ ' + tot + ' / 60';
     $('tRec').textContent = save.daily.streak ? 'streak ' + save.daily.streak : '';
@@ -1957,6 +2052,113 @@
     pz.cells.forEach(function (v, i) { if (v === 1 || v === 2) drawMark(c, v, pd + (i % 5 + .5) * cs, pd + (((i / 5) | 0) + .5) * cs, cs, 1, 1); });
     $('dInfo').textContent = rec && rec.ok ? 'Solved today ✓ — streak ' + save.daily.streak + '. Replay it for fun.' : (rec ? rec.tries + ' tries so far today. ' : '') + 'First solve today: 25+ sparks.';
   }
+  /* ── Puzzle Forge: the editor ── */
+  var FGS = null, FG = { cells: [], cur: 12, tool: 1, res: null, kb: false, hov: -1 };
+  function forgeStore() {
+    if (FGS) return FGS;
+    var o = load('forge', null) || {};
+    FGS = { draft: Array.isArray(o.draft) && o.draft.length === 25 ? o.draft.map(function (v) { return v === 1 || v === 2 ? v : 0; }) : null,
+      mine: Array.isArray(o.mine) ? o.mine.filter(function (c) { return typeof c === 'string' && forgeDecode(c); }).slice(0, 8) : [],
+      solved: o.solved && typeof o.solved === 'object' && !Array.isArray(o.solved) ? o.solved : {},
+      tries: o.tries && typeof o.tries === 'object' && !Array.isArray(o.tries) ? o.tries : {} };
+    return FGS;
+  }
+  function forgeSave() {
+    var FS = forgeStore(), ks = Object.keys(FS.tries);
+    while (ks.length > 120) { var k0 = ks.shift(); delete FS.tries[k0]; delete FS.solved[k0]; }
+    store('forge', FS);
+  }
+  (function () { var d = forgeStore().draft; FG.cells = d ? d.slice() : [0,2,0,0,0, 0,1,0,0,2, 0,0,0,0,0, 0,0,0,0,1, 0,1,0,2,0]; FG.res = null; })();
+  function forgeChanged() {
+    FG.res = forgeProve(FG.cells); FG.code = FG.res.ok ? forgeEncode(FG.cells, FG.res.d) : '';
+    var FS = forgeStore(); FS.draft = FG.cells.slice(); forgeSave();
+    renderForge();
+  }
+  function forgeRemember(code) { var FS = forgeStore(); FS.mine = [code].concat(FS.mine.filter(function (c) { return c !== code; })).slice(0, 8); forgeSave(); }
+  function forgePaint(i, v) {
+    if (i < 0 || i > 24) return;
+    FG.cells[i] = v == null ? (FG.tool === 0 ? 0 : FG.cells[i] === FG.tool ? 0 : FG.tool) : v;
+    (FG.cells[i] === 1 ? SFX.x : FG.cells[i] === 2 ? SFX.o : SFX.back)();
+    forgeChanged();
+  }
+  function forgeDraw() {
+    var cvs = $('fgCv'), c = cvs.getContext('2d'), S = cvs.width, r = FG.res || {};
+    c.clearRect(0, 0, S, S);
+    rr(c, 0, 0, S, S, 22); c.fillStyle = '#10082a'; c.fill();
+    rr(c, 2, 2, S - 4, S - 4, 20); tube(c, r.ok ? '#5ef0a0' : '#ffb03f', 3, r.ok ? .9 : .6);
+    var pd = S * .06, cs = (S - 2 * pd) / 5;
+    c.beginPath(); for (var k = 1; k < 5; k++) { c.moveTo(pd + k * cs, pd); c.lineTo(pd + k * cs, S - pd); c.moveTo(pd, pd + k * cs); c.lineTo(S - pd, pd + k * cs); } tube(c, '#ff3fa4', 2, .75);
+    var hv = FG.kb ? FG.cur : FG.hov;
+    if (hv >= 0) { var hx = pd + (hv % 5) * cs, hy = pd + ((hv / 5) | 0) * cs; rr(c, hx + 4, hy + 4, cs - 8, cs - 8, cs * .16); c.lineWidth = 2.5; c.strokeStyle = 'rgba(255,210,63,.85)'; c.stroke();
+      if (!FG.cells[hv] && FG.tool) drawMark(c, FG.tool, hx + cs / 2, hy + cs / 2, cs, 1, .25); }
+    FG.cells.forEach(function (v, i) { if (v === 1 || v === 2) drawMark(c, v, pd + (i % 5 + .5) * cs, pd + (((i / 5) | 0) + .5) * cs, cs, 1, 1); });
+  }
+  function renderForge() {
+    if (!FG.res) { FG.res = forgeProve(FG.cells); FG.code = FG.res.ok ? forgeEncode(FG.cells, FG.res.d) : ''; }
+    var r = FG.res, FS = forgeStore();
+    $('fgTitle').textContent = r.ok ? 'Proven: win in ' + r.d : 'Compose a puzzle';
+    var grade = r.ok ? (r.d === 1 ? 'Warm-up' : r.d === 2 ? 'Tricky' : 'Hard') + (r.keys.length === 1 ? ' · one unique key move' : ' · ' + r.keys.length + ' key moves') : '';
+    $('fgStat').innerHTML = r.ok ? '<b class="ok">✓ Proven.</b> ✕ forces four in a row within <b>' + r.d + '</b> move' + (r.d > 1 ? 's' : '') + ' against every defence. ' + esc(grade) + (r.d < 3 ? '. Want it harder? Take a ✕ away or add a ○.' : '.')
+      : '<b class="no">Not a puzzle yet.</b> ' + esc(r.msg);
+    var inp = $('fgCode'); if (document.activeElement !== inp) inp.value = FG.code || '';
+    $('fgCopy').disabled = !r.ok; $('fgPlay').disabled = !r.ok;
+    var tb = $('fgTool'); tb.innerHTML = '';
+    [[1, '✕ attacker'], [2, '○ defender'], [0, 'Erase']].forEach(function (x) { var b = document.createElement('button'); b.textContent = x[1]; b.className = FG.tool === x[0] ? 'on' : ''; b.onclick = function () { SFX.ui(); FG.tool = x[0]; renderForge(); }; tb.appendChild(b); });
+    var mb = $('fgMine'); mb.innerHTML = '';
+    if (FS.mine.length) { var h = document.createElement('div'); h.className = 'sec'; h.style.flexBasis = '100%'; h.textContent = 'Your forged puzzles'; mb.appendChild(h); }
+    FS.mine.forEach(function (code) { var b = document.createElement('button'); b.className = 'fb'; b.textContent = code + (FS.solved[code] ? ' ✓' : ''); b.title = 'Load ' + code; b.onclick = function () { SFX.ui(); forgeLoad(code); }; mb.appendChild(b); });
+    forgeDraw();
+  }
+  function forgeLoad(code) {
+    var dc = forgeDecode(code);
+    if (!dc) { SFX.deny(); toast('That code does not read: it looks like NN3-ABCDEFGHJ'); return false; }
+    FG.cells = dc.cells; FG.kb = false; $('fgCode').blur(); forgeChanged();
+    if (FG.res.ok) toast('Loaded ' + FG.code + ' · win in ' + FG.res.d); else toast('Loaded — but it no longer proves');
+    return true;
+  }
+  function forgeCopy() {
+    if (!FG.res || !FG.res.ok) { SFX.deny(); return; }
+    var code = FG.code, link = /^https?:$/.test(location.protocol) ? ' ' + location.origin + location.pathname + '#forge=' + code : '';
+    var txt = 'Neon Noughts · Puzzle Forge · win in ' + FG.res.d + ' · ' + code + link;
+    forgeRemember(code); renderForge();
+    var done = function () { SFX.coin(); toast('Copied ' + code + ' — send it to a friend'); };
+    var fallback = function () { var inp = $('fgCode'); inp.value = code; inp.focus(); inp.select(); toast('Code selected: copy it with Ctrl+C'); };
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback); else fallback(); } catch (e) { fallback(); }
+  }
+  function forgePlay() {
+    if (!FG.res || !FG.res.ok) { SFX.deny(); toast('Prove it first: ✕ needs a forced win'); return; }
+    forgeRemember(FG.code); SFX.ui();
+    begin({ mode: 'forge', code: FG.code, cells: FG.cells.slice(), n: FG.res.d });
+  }
+  function forgeCellAt(e) { var cvs = $('fgCv'), r = cvs.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height, pd = .06, cs = (1 - 2 * pd) / 5;
+    var cx = Math.floor((x - pd) / cs), cy = Math.floor((y - pd) / cs); return cx < 0 || cy < 0 || cx > 4 || cy > 4 ? -1 : cy * 5 + cx; }
+  $('fgCv').addEventListener('pointerdown', function (e) { e.preventDefault(); var i = forgeCellAt(e); if (i < 0) return; FG.kb = false; FG.cur = i; forgePaint(i); });
+  $('fgCv').addEventListener('pointermove', function (e) { if (e.pointerType !== 'mouse') return; var i = forgeCellAt(e); if (i !== FG.hov) { FG.hov = i; FG.kb = false; forgeDraw(); } });
+  $('fgCv').addEventListener('pointerleave', function () { FG.hov = -1; forgeDraw(); });
+  /** Editor keys; true when the key was used. */
+  function forgeKey(e, code) {
+    var inp = $('fgCode');
+    if (document.activeElement === inp) { if (code === 'Enter' || code === 'NumpadEnter') { e.preventDefault(); forgeLoad(inp.value); return true; } return code !== 'Escape'; }
+    var onBtn = document.activeElement && document.activeElement.tagName === 'BUTTON';
+    var d = KDIR[code];
+    if (d && code.indexOf('Arrow') === 0 || (d && !onBtn)) { e.preventDefault(); if (onBtn) document.activeElement.blur(); FG.kb = true; var r = (FG.cur / 5) | 0, c = FG.cur % 5;
+      if (d === 'up') r = Math.max(0, r - 1); if (d === 'down') r = Math.min(4, r + 1); if (d === 'left') c = Math.max(0, c - 1); if (d === 'right') c = Math.min(4, c + 1); FG.cur = r * 5 + c; forgeDraw(); return true; }
+    if (code === 'KeyX') { e.preventDefault(); FG.kb = true; forgePaint(FG.cur, FG.cells[FG.cur] === 1 ? 0 : 1); return true; }
+    if (code === 'KeyO') { e.preventDefault(); FG.kb = true; forgePaint(FG.cur, FG.cells[FG.cur] === 2 ? 0 : 2); return true; }
+    if (code === 'Delete' || code === 'Backspace') { e.preventDefault(); FG.kb = true; forgePaint(FG.cur, 0); return true; }
+    if (code === 'Space' && !onBtn) { e.preventDefault(); FG.kb = true; forgePaint(FG.cur); return true; }
+    if (code === 'KeyB') { e.preventDefault(); FG.tool = FG.tool === 1 ? 2 : FG.tool === 2 ? 0 : 1; SFX.ui(); renderForge(); return true; }
+    if (code === 'KeyC') { e.preventDefault(); forgeCopy(); return true; }
+    if (code === 'KeyL') { e.preventDefault(); inp.value = ''; inp.focus(); return true; }
+    if ((code === 'Enter' || code === 'NumpadEnter') && !onBtn) { e.preventDefault(); forgePlay(); return true; }
+    return false;
+  }
+  $('tForge').onclick = function () { SFX.ui(); show('forge'); };
+  $('fgPlay').onclick = function () { forgePlay(); };
+  $('fgCopy').onclick = function () { forgeCopy(); };
+  $('fgLoad').onclick = function () { var v = $('fgCode').value; if (v && v !== FG.code) forgeLoad(v); else { $('fgCode').value = ''; $('fgCode').focus(); toast('Paste a code, then Load'); } };
+  $('fgClear').onclick = function () { SFX.back(); FG.cells = []; for (var i = 0; i < 25; i++) FG.cells.push(0); forgeChanged(); };
+  $('fgRemix').onclick = function () { SFX.ui(); var pz = puzzleFor(dayKey()); FG.cells = Array.prototype.slice.call(pz.cells).map(function (v) { return v === 1 || v === 2 ? v : 0; }); forgeChanged(); toast('Today\'s daily is on the anvil — change it and make it yours'); };
   function renderShop() {
     $('sSparks').textContent = save.sparks;
     var box = $('shopOpts'); box.innerHTML = '';
@@ -2067,8 +2269,8 @@
       case 'brief': SFX.back(); openBrief.back(); return;
       case 'shop': SFX.back(); show(shopReturn); return;
       case 'settings': SFX.back(); show(settingsReturn); return;
-      case 'results': SFX.back(); var g = G; G = null; botOn = false; if (g && g.mode === 'camp') openMap(Math.floor(g.si / 5)); else show('title'); return;
-      case 'map': case 'setup': case 'how': case 'daily': SFX.back(); show('title'); return;
+      case 'results': SFX.back(); var g = G; G = null; botOn = false; if (g && g.mode === 'camp') openMap(Math.floor(g.si / 5)); else show(g && g.mode === 'forge' ? 'forge' : 'title'); return;
+      case 'map': case 'setup': case 'how': case 'daily': case 'forge': SFX.back(); if (view === 'forge') document.activeElement && document.activeElement.blur && document.activeElement.blur(); show('title'); return;
     }
   }
   openBrief.back = function () { openMap(Math.floor(briefStage / 5)); };
@@ -2132,6 +2334,7 @@
       return;
     }
     if (view === 'pause' && code === 'KeyP') { e.preventDefault(); resume(); return; }
+    if (view === 'forge' && forgeKey(e, code)) return;
     if (code === 'Escape') { e.preventDefault(); goBack(); return; }
     if (KDIR[code] && code.indexOf('Arrow') === 0) {
       var root = $(UIS[view]); if (!root) return;
@@ -2297,6 +2500,7 @@
   };
   applyMotion();
   show('title');
+  (function () { var m = /forge=([0-9A-Za-z-]+)/.exec(location.hash || ''); if (m && forgeDecode(m[1])) { show('forge'); forgeLoad(m[1]); } })();
 })();
 </script>
 </body>

@@ -10,6 +10,16 @@
   <a href="https://ai-llm-2030.github.io/TrueMarch_Games_Neon_Noughts/"><b>▶ Play Neon Noughts in your browser</b></a>
 </p>
 
+## What's new: Puzzle Forge
+
+Build your own "win in N" puzzle and send it to a friend. Paint ✕ and ○ marks on a 5×5 board (four in a row wins). A built-in solver checks every reply ○ could make and proves the shortest forced win for ✕: 1, 2 or 3 moves, and how many first moves work. Each proven board gets a short share code such as `NN3-5T5R2WY9X`. Anyone can paste the code and play the puzzle against a defender that refutes every slip. Codes are proved again when they load, so a hand-edited code cannot claim a win that isn't there. Your puzzles and solves stay in local storage.
+
+**Try it:** title screen → **Puzzle Forge**. Click a square (or **← ↑ ↓ →** + **Space**) to paint with the brush · **X** / **O** place · **Del** erase · **B** switch brush · **C** copy the code · **L** paste a code · **Enter** play it · **Esc** back. On touch, tap squares and use the buttons. **Remix today's daily** puts the daily puzzle on the board for you to edit.
+
+<p align="center">
+  <img src="assets/screenshot-forge.png" alt="Neon Noughts — Puzzle Forge editor with a proven win in 3" width="820">
+</p>
+
 ## Gameplay
 
 <p align="center">
